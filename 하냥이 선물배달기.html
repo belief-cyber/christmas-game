@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>산타 하냥이의 선물 배달</title>
+    
+    <!-- Paperlogy Font Import -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/Paperlogy/Paperlogy.css" type="text/css"/>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 스크롤 방지 */
+            background-color: #2b3950; 
+            font-family: 'Paperlogy', sans-serif;
+            touch-action: none; /* 모바일에서 더블탭 확대 등 제스처 방지 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            /* 모바일 브라우저 상단바 이슈 대응 */
+            height: 100dvh; 
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* PC/태블릿에서는 너무 넓어지지 않게 */
+            height: 100%;     /* 부모 높이(화면 전체)를 꽉 채움 */
+            background: linear-gradient(180deg, #1e2a3a 0%, #2f455c 100%);
+            overflow: hidden;
+            box-shadow: 0 0 25px rgba(0,0,0,0.6);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Elements */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(20, 30, 48, 0.85); 
+            color: white;
+            z-index: 20;
+            text-align: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 2.2rem; /* 모바일에서도 잘 보이는 크기 */
+            color: #ff6b6b;
+            text-shadow: 3px 3px 0 #2d3436;
+            margin-bottom: 20px;
+            font-weight: 800;
+            padding: 0 10px;
+            word-break: keep-all;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: #feca57;
+            font-weight: 700;
+        }
+
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            padding: 0 30px;
+            word-break: keep-all;
+            color: #dfe6e9;
+            font-weight: 400;
+        }
+
+        .btn {
+            background-color: #ff4757;
+            color: white;
+            padding: 18px 45px;
+            font-size: 1.3rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Paperlogy', sans-serif;
+            font-weight: 700;
+            box-shadow: 0 6px 0 #c0392b; 
+            transition: transform 0.1s, box-shadow 0.1s;
+            -webkit-tap-highlight-color: transparent; /* 모바일 터치 하이라이트 제거 */
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #c0392b;
+        }
+
+        /* HUD */
+        #hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px; /* 아이폰 노치 고려 */
+            padding-top: max(20px, env(safe-area-inset-top)); 
+            box-sizing: border-box;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none; 
+        }
+
+        #lives-display {
+            font-size: 1.5rem;
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: absolute;
+            top: max(60px, calc(env(safe-area-inset-top) + 40px));
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 400px;
+            height: 12px;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.4);
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #feca57, #ff9f43);
+            transition: width 0.2s;
+        }
+
+        .score-text {
+            position: absolute;
+            top: max(30px, calc(env(safe-area-inset-top) + 10px));
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Snow effect */
+        .snowflake {
+            position: absolute;
+            top: -20px;
+            color: rgba(255, 255, 255, 0.8);
+            animation: fall linear forwards;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(110vh); }
+        }
+
+        /* Ending Card Style */
+        .card {
+            background-color: #fff; 
+            color: #2d3436; 
+            padding: 30px 25px; 
+            border-radius: 20px; 
+            width: 85%;
+            max-width: 350px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transform: rotate(-2deg); 
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- HUD -->
+    <div id="hud-layer">
+        <div id="lives-display">❤️❤️❤️</div>
+    </div>
+    <div class="score-text"><span id="score-val">0</span> / 100 점</div>
+    <div class="progress-container">
+        <div id="progress-bar" class="progress-bar"></div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay">
+        <h1>🎄 산타 하냥이의 선물 배달</h1>
+        <p>
+            1. 바닥 장애물은 <strong>점프!</strong><br>
+            2. 공중 장애물은 <strong>그냥 달리기!</strong><br>
+            (점프하면 부딪혀요 😱)
+        </p>
+        <button class="btn" onclick="startGame()">게임 시작</button>
+    </div>
+
+    <!-- Game Over / Retry Screen -->
+    <div id="retry-screen" class="overlay hidden">
+        <h2>쿵! 부딪혔어요</h2>
+        <p id="retry-message" style="font-size: 1.4rem; color:#ff7675;">남은 기회: 2번</p>
+        <button class="btn" onclick="retryGame()">다시 도전하기</button>
+    </div>
+
+    <!-- Final Ending Screen -->
+    <div id="final-screen" class="overlay hidden">
+        <div class="card">
+            <h2 id="final-title" style="color: #2d3436; margin:0;">게임 종료</h2>
+            <hr style="border: 2px dashed #b2bec3; margin: 20px 0;">
+            <p style="font-size: 1.1rem; color: #636e72; padding:0; margin-bottom:10px;">
+                축하합니다! 혹은<br>아쉽게 기회를 놓치셨군요.
+            </p>
+            <p style="font-size: 1.3rem; font-weight: 800; color: #d63031; line-height: 1.5; padding:0;">
+                12월 23일 오전 10시,<br>학술정보관 트리 점등식에<br>놀러오세요! 🎄
+            </p>
+        </div>
+        <p style="margin-top:30px; font-size: 1rem; opacity:0.8;">최종 기록: <span id="final-score">0</span> 점</p>
+        <button class="btn" style="padding: 12px 30px; font-size: 1rem; background-color: #00b894;" onclick="location.reload()">처음으로</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Configuration
+    const GROUND_HEIGHT = 60; // 바닥 높이
+    
+    // Load Images
+    const playerImg = new Image();
+    // 사용자가 지정한 파일명 (확장자 .png 가정)
+    playerImg.src = '한양대ERICA 하냥이 동작 개별저장_좌우반전-33.png';
+    playerImg.onerror = function() { console.error("캐릭터 이미지 로드 실패: " + playerImg.src); };
+
+    const airObsImg = new Image();
+    // 사용자가 지정한 파일명 (확장자 .png 가정)
+    airObsImg.src = '하이비비_포즈작업-08.png'; 
+    airObsImg.onerror = function() { console.error("장애물 이미지 로드 실패: " + airObsImg.src); };
+
+    // Game State
+    let gameState = 'START';
+    let score = 0;
+    let lives = 3;
+    let frame = 0;
+    let gameSpeed = 8; // 시작 속도 상향 (6 -> 8)
+    let animationId;
+
+    // Responsive Canvas
+    function resizeCanvas() {
+        // 부모 컨테이너(화면 전체) 크기에 맞춤
+        canvas.width = document.getElementById('game-container').offsetWidth;
+        canvas.height = document.getElementById('game-container').offsetHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Game Objects
+    const player = {
+        x: 50,
+        y: 0,
+        width: 100,
+        height: 100,
+        dy: 0,
+        jumpPower: -17, // 점프력 약간 상승
+        gravity: 0.9,   // 중력감 상승 (빠른 복귀)
+        grounded: false,
+        
+        draw() {
+            if (playerImg.complete && playerImg.naturalHeight !== 0) {
+                ctx.drawImage(playerImg, this.x, this.y, this.width, this.height);
+            } else {
+                ctx.font = '55px Paperlogy';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText('🎅', this.x + this.width/2, this.y + this.height + 5);
+            }
+        },
+
+        update() {
+            this.dy += this.gravity;
+            this.y += this.dy;
+
+            const groundY = canvas.height - GROUND_HEIGHT;
+            if (this.y + this.height > groundY) {
+                this.y = groundY - this.height;
+                this.dy = 0;
+                this.grounded = true;
+            } else {
+                this.grounded = false;
+            }
+        },
+
+        jump() {
+            if (this.grounded) {
+                this.dy = this.jumpPower;
+                this.grounded = false;
+            }
+        }
+    };
+
+    let obstacles = [];
+    // 바닥 장애물 이모지들
+    const groundTypes = ['🎄', '🎁', '📚']; 
+
+    class Obstacle {
+        constructor() {
+            this.width = 50; 
+            this.height = 50;
+            this.x = canvas.width;
+            this.markedForScore = false;
+            
+            // 30% 확률로 "공중 장애물" 생성 (점프하면 죽음)
+            // 나머지는 "바닥 장애물" (점프해야 함)
+            if (Math.random() < 0.3) {
+                this.type = 'AIR';
+                // 공중 장애물 높이: 캐릭터 점프 최고점 근처 (바닥에서 약 130~140px 위)
+                this.y = canvas.height - GROUND_HEIGHT - 180; 
+                this.width = 80; // 이미지 비율 고려
+                this.height = 80;
+            } else {
+                this.type = 'GROUND';
+                this.y = canvas.height - GROUND_HEIGHT - this.height + 10;
+                this.displayChar = groundTypes[Math.floor(Math.random() * groundTypes.length)];
+            }
+        }
+
+        draw() {
+            if (this.type === 'AIR') {
+                // 공중 장애물 이미지 그리기
+                if (airObsImg.complete && airObsImg.naturalHeight !== 0) {
+                     ctx.drawImage(airObsImg, this.x, this.y, this.width, this.height);
+                } else {
+                     // Fallback if image fails
+                     ctx.font = '50px Paperlogy';
+                     ctx.fillText('🦇', this.x, this.y + this.height);
+                }
+            } else {
+                // 바닥 장애물 이모지
+                ctx.font = '45px Paperlogy';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(this.displayChar, this.x, this.y + this.height);
+            }
+        }
+
+        update() {
+            this.x -= gameSpeed;
+        }
+    }
+
+    // Input Handling
+    function handleInput(e) {
+        if (gameState !== 'PLAYING') return;
+        if ((e.type === 'keydown' && (e.code === 'Space' || e.code === 'ArrowUp')) ||
+            e.type === 'touchstart' || 
+            e.type === 'click') {
+            
+            e.preventDefault(); 
+            player.jump();
+        }
+    }
+    
+    window.addEventListener('keydown', handleInput);
+    // passive: false를 유지하여 스크롤 방지
+    canvas.addEventListener('touchstart', handleInput, {passive: false});
+    canvas.addEventListener('click', handleInput);
+
+    // Collision Logic
+    function checkCollision(player, obs) {
+        const padding = 12;
+
+        return (
+            player.x + padding < obs.x + obs.width - padding &&
+            player.x + player.width - padding > obs.x + padding &&
+            player.y + padding < obs.y + obs.height - padding &&
+            player.y + player.height > obs.y + padding
+        );
+    }
+
+    // Snow animation
+    function createSnow() {
+        const snowflake = document.createElement('div');
+        snowflake.classList.add('snowflake');
+        snowflake.innerText = Math.random() > 0.5 ? '❄️' : '·';
+        snowflake.style.left = Math.random() * 100 + 'vw';
+        snowflake.style.opacity = Math.random() * 0.7 + 0.3;
+        snowflake.style.fontSize = (Math.random() * 15 + 10) + 'px';
+        snowflake.style.animationDuration = (Math.random() * 3 + 3) + 's';
+        
+        document.getElementById('game-container').appendChild(snowflake);
+
+        setTimeout(() => {
+            snowflake.remove();
+        }, 6000);
+    }
+    setInterval(createSnow, 200);
+
+    // Main Game Loop
+    function update() {
+        if (gameState !== 'PLAYING') return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Ground
+        ctx.fillStyle = '#ecf0f1';
+        ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, GROUND_HEIGHT);
+        
+        // Draw Ground Line
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height - GROUND_HEIGHT);
+        ctx.lineTo(canvas.width, canvas.height - GROUND_HEIGHT);
+        ctx.strokeStyle = '#dfe6e9';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Update Player
+        player.update();
+        player.draw();
+
+        // Speed Progression (더 빠르게 증가)
+        // 기본 8 + 점수당 0.15 증가 (100점이면 +15 => 속도 23)
+        // 상한선 20 정도로 제한
+        let targetSpeed = 8 + (score * 0.15);
+        gameSpeed = Math.min(22, targetSpeed);
+
+        // Spawn Obstacles
+        frame++;
+        // 속도가 빠를수록 생성 간격을 좁혀서 난이도 유지
+        let spawnThreshold = Math.max(40, 120 - (score * 0.8) - (gameSpeed * 2));
+        let randomFactor = Math.random() * 40;
+        
+        if (frame > spawnThreshold + randomFactor) {
+            obstacles.push(new Obstacle());
+            frame = 0;
+        }
+
+        // Manage Obstacles
+        for (let i = 0; i < obstacles.length; i++) {
+            let obs = obstacles[i];
+            obs.update();
+            obs.draw();
+
+            // Collision Check
+            if (checkCollision(player, obs)) {
+                handleCollision();
+                return;
+            }
+
+            // Scoring
+            if (obs.x + obs.width < player.x && !obs.markedForScore) {
+                score++;
+                obs.markedForScore = true;
+                updateScoreUI();
+                
+                if (score >= 100) {
+                    gameWin();
+                    return;
+                }
+            }
+
+            // Remove off-screen
+            if (obs.x + obs.width < 0) {
+                obstacles.splice(i, 1);
+                i--;
+            }
+        }
+
+        animationId = requestAnimationFrame(update);
+    }
+
+    function handleCollision() {
+        cancelAnimationFrame(animationId);
+        gameState = 'GAMEOVER';
+        
+        drawSpeechBubble(player.x + 30, player.y - 15, "아이쿠야!");
+        
+        lives--;
+        updateLivesUI();
+
+        setTimeout(() => {
+            if (lives > 0) {
+                showRetryScreen();
+            } else {
+                showFinalScreen();
+            }
+        }, 800);
+    }
+
+    function drawSpeechBubble(x, y, text) {
+        ctx.save();
+        ctx.font = "bold 20px 'Paperlogy'";
+        let textMetrics = ctx.measureText(text);
+        let textWidth = textMetrics.width;
+        let p = 15; 
+        let bubbleH = 40;
+        
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        drawRoundedRect(ctx, x + 2, y - bubbleH + 2, textWidth + p*2, bubbleH, 10);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#2d3436";
+        ctx.lineWidth = 3;
+        
+        ctx.beginPath();
+        ctx.roundRect(x, y - bubbleH, textWidth + p*2, bubbleH, 10);
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(x + 15, y);
+        ctx.lineTo(x + 25, y + 15);
+        ctx.lineTo(x + 35, y);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(x + 16, y);
+        ctx.lineTo(x + 34, y);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+
+        ctx.fillStyle = "#2d3436";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, x + p, y - bubbleH/2 + 2);
+        
+        ctx.restore();
+    }
+    
+    function drawRoundedRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, r);
+        ctx.fill();
+    }
+
+    // UI Functions
+    function updateScoreUI() {
+        document.getElementById('score-val').innerText = score;
+        let percentage = Math.min(100, score);
+        document.getElementById('progress-bar').style.width = percentage + '%';
+    }
+
+    function updateLivesUI() {
+        let hearts = '';
+        for(let i=0; i<lives; i++) hearts += '❤️';
+        for(let i=0; i<3-lives; i++) hearts += '🤍';
+        document.getElementById('lives-display').innerText = hearts;
+    }
+
+    function startGame() {
+        document.getElementById('start-screen').classList.add('hidden');
+        resetGameVariables();
+        gameState = 'PLAYING';
+        update();
+    }
+
+    function retryGame() {
+        document.getElementById('retry-screen').classList.add('hidden');
+        resetGameVariables(false); 
+        gameState = 'PLAYING';
+        update();
+    }
+
+    function resetGameVariables(fullReset = true) {
+        player.y = canvas.height - GROUND_HEIGHT - player.height;
+        player.dy = 0;
+        player.grounded = true;
+        
+        obstacles = [];
+        frame = 0;
+        if (fullReset) {
+            score = 0;
+            lives = 3;
+            gameSpeed = 8;
+            updateScoreUI();
+            updateLivesUI();
+        } else {
+            // 재도전 시 속도 유지
+            gameSpeed = Math.min(22, 8 + (score * 0.15));
+            frame = -60; 
+        }
+    }
+
+    function showRetryScreen() {
+        document.getElementById('retry-message').innerText = `남은 재도전 기회: ${lives}번`;
+        document.getElementById('retry-screen').classList.remove('hidden');
+    }
+
+    function showFinalScreen() {
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('final-title').innerText = "게임 종료";
+        document.getElementById('final-screen').classList.remove('hidden');
+    }
+
+    function gameWin() {
+        cancelAnimationFrame(animationId);
+        gameState = 'FINAL';
+        document.getElementById('final-title').innerText = "🎉 미션 성공! 🎉";
+        document.getElementById('final-score').innerText = "100 (만점)";
+        document.getElementById('final-screen').classList.remove('hidden');
+    }
+
+</script>
+</body>
+</html>
