@@ -281,7 +281,7 @@
         width: 90,
         height: 90,
         dy: 0,
-        jumpPower: -17, // 점프력 약간 상승
+        jumpPower: -15, // 점프력 약간 상승
         gravity: 0.9,   // 중력감 상승 (빠른 복귀)
         grounded: false,
         
@@ -440,8 +440,8 @@
         // Speed Progression (더 빠르게 증가)
         // 기본 8 + 점수당 0.15 증가 (100점이면 +15 => 속도 23)
         // 상한선 20 정도로 제한
-        let targetSpeed = 8 + (score * 0.15);
-        gameSpeed = Math.min(22, targetSpeed);
+        let targetSpeed = 6 + (score * 0.12);
+        gameSpeed = Math.min(20, targetSpeed);
 
         // Spawn Obstacles
         frame++;
@@ -625,5 +625,6 @@
 </script>
 </body>
 </html>
+
 
 
